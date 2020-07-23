@@ -8,6 +8,7 @@ set(COMPONENT_SRCS
   sensors/ov3660.c
   sensors/ov5640.c
   sensors/ov7725.c
+  sensors/ov7740.c
   conversions/yuv.c
   conversions/to_jpg.cpp
   conversions/to_bmp.c

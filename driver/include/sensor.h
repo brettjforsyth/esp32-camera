@@ -16,6 +16,9 @@
 #define OV2640_PID     (0x26)
 #define OV3660_PID     (0x36)
 #define OV5640_PID     (0x56)
+#define OV7740_PID     (0x77)
+
+/*#define OV_I2C_SENSOR_ADDRESS          (0x42u >> 1)    OV7740 -> 0x42 */
 
 typedef enum {
     PIXFORMAT_RGB565,    // 2BPP/RGB565
@@ -55,6 +58,13 @@ typedef enum {
     FRAMESIZE_QSXGA,    // 2560x1920
     FRAMESIZE_INVALID
 } framesize_t;
+
+typedef enum {
+    FRAMERATE_60FPS,
+    FRAMERATE_30FPS,
+    FRAMERATE_25FPS,
+    FRAMERATE_15FPS,
+} framerate_t;
 
 typedef enum {
     ASPECT_RATIO_4X3,
@@ -151,6 +161,7 @@ typedef struct _sensor {
     int  (*reset)               (sensor_t *sensor);
     int  (*set_pixformat)       (sensor_t *sensor, pixformat_t pixformat);
     int  (*set_framesize)       (sensor_t *sensor, framesize_t framesize);
+    int  (*set_framerate)       (sensor_t *sensor, framerate_t framerate);
     int  (*set_contrast)        (sensor_t *sensor, int level);
     int  (*set_brightness)      (sensor_t *sensor, int level);
     int  (*set_saturation)      (sensor_t *sensor, int level);

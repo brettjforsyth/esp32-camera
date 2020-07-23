@@ -45,15 +45,15 @@ static uint8_t ESP_SLAVE_ADDR   = 0x3c;
 
 int SCCB_Init(int pin_sda, int pin_scl)
 {
-    ESP_LOGI(TAG, "pin_sda %d pin_scl %d\n", pin_sda, pin_scl);
+    ESP_LOGE(TAG, "pin_sda %d pin_scl %d\n", pin_sda, pin_scl);
 #ifdef CONFIG_SCCB_HARDWARE_I2C
-    //log_i("SCCB_Init start");
+    ESP_LOGE(TAG,"SCCB_Init start hardware");
     i2c_config_t conf;
     conf.mode = I2C_MODE_MASTER;
     conf.sda_io_num = pin_sda;
-    conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
+    conf.sda_pullup_en = GPIO_PULLUP_DISABLE;
     conf.scl_io_num = pin_scl;
-    conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
+    conf.scl_pullup_en = GPIO_PULLUP_DISABLE;
     conf.master.clk_speed = SCCB_FREQ;
 
     i2c_param_config(SCCB_I2C_PORT, &conf);
@@ -67,7 +67,17 @@ int SCCB_Init(int pin_sda, int pin_scl)
 uint8_t SCCB_Probe()
 {
 #ifdef CONFIG_SCCB_HARDWARE_I2C
-    uint8_t slave_addr = 0x0;
+    ESP_LOGE(TAG, "SCCB_Probe hardware start");
+
+    /*
+        SUPER KLUDGE: This was the only way to get the camera to work with the new board was to hard set the ID
+        Need to figure out what the ID for the 7740 looks like on the I2C
+
+    */
+    /* ov2640 */
+    //uint8_t slave_addr = 0x30;
+    /* ov7740 */
+    uint8_t slave_addr = 0x21;
     while(slave_addr < 0x7f) {
         i2c_cmd_handle_t cmd = i2c_cmd_link_create();
         i2c_master_start(cmd);
@@ -75,6 +85,8 @@ uint8_t SCCB_Probe()
         i2c_master_stop(cmd);
         esp_err_t ret = i2c_master_cmd_begin(SCCB_I2C_PORT, cmd, 1000 / portTICK_RATE_MS);
         i2c_cmd_link_delete(cmd);
+        ESP_LOGE(TAG, "return from slave test %d",ret);
+        ESP_LOGE(TAG, "Camera slave_addr %d",slave_addr);
         if( ret == ESP_OK) {
             ESP_SLAVE_ADDR = slave_addr;
             return ESP_SLAVE_ADDR;
@@ -86,7 +98,7 @@ uint8_t SCCB_Probe()
     uint8_t reg = 0x00;
     uint8_t slv_addr = 0x00;
 
-    ESP_LOGI(TAG, "SCCB_Probe start");
+    ESP_LOGE(TAG, "SCCB_Probe start");
     for (uint8_t i = 0; i < 127; i++) {
         if (twi_writeTo(i, &reg, 1, true) == 0) {
             slv_addr = i;
@@ -97,6 +109,7 @@ uint8_t SCCB_Probe()
             vTaskDelay(10 / portTICK_PERIOD_MS); // Necessary for OV7725 camera (not for OV2640).
         }
     }
+    ESP_LOGE(TAG, "Detected camera at address=0x%02x", slv_addr);
     return slv_addr;
 #endif
 }
