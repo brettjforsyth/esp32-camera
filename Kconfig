@@ -9,21 +9,21 @@ config OV2640_SUPPORT
 
 config OV7725_SUPPORT
 	bool "OV7725 Support"
-	default n
+	default y
 	help
 		Enable this option if you want to use the OV7725.
 		Disable this option to save memory.
 	
 config OV3660_SUPPORT
     bool "OV3660 Support"
-    default n
+    default y
     help
         Enable this option if you want to use the OV3360.
         Disable this option to save memory.
     
 config OV5640_SUPPORT
     bool "OV5640 Support"
-    default n
+    default y
     help
         Enable this option if you want to use the OV5640.
         Disable this option to save memory.

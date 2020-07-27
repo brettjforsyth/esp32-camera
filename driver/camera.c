@@ -629,6 +629,7 @@ static void IRAM_ATTR camera_fb_done()
     BaseType_t taskAwoken = 0;
 
     if(s_state->config.fb_count == 1) {
+        ESP_LOGE(TAG, "camera_fb_done xSemaphoreGive %d",s_state->frame_ready);
         xSemaphoreGive(s_state->frame_ready);
         return;
     }
@@ -686,7 +687,7 @@ static void IRAM_ATTR camera_fb_done()
 static void IRAM_ATTR dma_finish_frame()
 {
     size_t buf_len = s_state->width * s_state->fb_bytes_per_pixel / s_state->dma_per_line;
-
+    ESP_LOGE(TAG, "dma_finish_frame: ref %d bad %d DMA count: %d", s_state->fb->ref, s_state->fb->bad,s_state->dma_received_count);
     if(!s_state->fb->ref) {
         // is the frame bad?
         if(s_state->fb->bad){
@@ -694,12 +695,17 @@ static void IRAM_ATTR dma_finish_frame()
             s_state->fb->len = 0;
             *((uint32_t *)s_state->fb->buf) = 0;
             if(s_state->config.fb_count == 1) {
-                i2s_start_bus();
+                ESP_LOGE(TAG, "bad frame dma_finish_frame");
+                //i2s_start_bus();
+                camera_fb_done();
             }
             //ets_printf("bad\n");
         } else {
             s_state->fb->len = s_state->dma_filtered_count * buf_len;
+
+
             if(s_state->fb->len) {
+                ESP_LOGE(TAG, "good dma_finish_frame  s_state->fb->len send frame");
                 //find the end marker for JPEG. Data after that can be discarded
                 if(s_state->fb->format == PIXFORMAT_JPEG){
                     uint8_t * dptr = &s_state->fb->buf[s_state->fb->len - 1];
@@ -722,12 +728,14 @@ static void IRAM_ATTR dma_finish_frame()
                 camera_fb_done();
             } else if(s_state->config.fb_count == 1){
                 //frame was empty?
+                ESP_LOGE(TAG, "good frame dma_finish_frame FB 1");
                 i2s_start_bus();
             } else {
                 //ets_printf("empty\n");
             }
         }
     } else if(s_state->fb->len) {
+
         camera_fb_done();
     }
     s_state->dma_filtered_count = 0;
@@ -1301,13 +1309,8 @@ ESP_LOGE(TAG, "set core affinity");
     vsync_intr_disable();
     err = gpio_install_isr_service(ESP_INTR_FLAG_LEVEL1 | ESP_INTR_FLAG_IRAM);
     if (err != ESP_OK) {
-    	if (err != ESP_ERR_INVALID_STATE) {
-    		ESP_LOGE(TAG, "gpio_install_isr_service failed (%x)", err);
-        	goto fail;
-    	}
-    	else {
-    		ESP_LOGW(TAG, "gpio_install_isr_service already installed");
-    	}
+        ESP_LOGE(TAG, "gpio_install_isr_service failed (%x)", err);
+        goto fail;
     }
     err = gpio_isr_handler_add(s_state->config.pin_vsync, &vsync_isr, NULL);
     if (err != ESP_OK) {
