@@ -1066,8 +1066,7 @@ esp_err_t camera_probe(const camera_config_t* config, camera_model_t* out_camera
 #if (CONFIG_OV3660_SUPPORT || CONFIG_OV5640_SUPPORT)
     }
 #endif
-
-
+//TODO:: Fix this up so that it tests other parts of the camera identifier to differentiate cameras with the same PID
     switch (id->PID) {
 #if CONFIG_OV2640_SUPPORT
     case OV2640_PID:
@@ -1075,13 +1074,13 @@ esp_err_t camera_probe(const camera_config_t* config, camera_model_t* out_camera
         ov2640_init(&s_state->sensor);
         break;
 #endif
-#if CONFIG_OV7725_SUPPORT
-    case OV7725_PID:
-    ESP_LOGE(TAG, "Detected camera ov7725.");
-        *out_camera_model = CAMERA_OV7725;
-        ov7725_init(&s_state->sensor);
-        break;
-#endif
+// #if CONFIG_OV7725_SUPPORT
+//     case OV7725_PID:
+//     ESP_LOGE(TAG, "Detected camera ov7725.");
+//         *out_camera_model = CAMERA_OV7725;
+//         ov7725_init(&s_state->sensor);
+//         break;
+// #endif
 #if CONFIG_OV3660_SUPPORT
     case OV3660_PID:
         *out_camera_model = CAMERA_OV3660;
@@ -1136,13 +1135,13 @@ esp_err_t camera_init(const camera_config_t* config)
             }
             break;
 #endif
-#if CONFIG_OV7725_SUPPORT
-        case OV7725_PID:
-            if (frame_size > FRAMESIZE_VGA) {
-                frame_size = FRAMESIZE_VGA;
-            }
-            break;
-#endif
+// #if CONFIG_OV7725_SUPPORT
+//         case OV7725_PID:
+//             if (frame_size > FRAMESIZE_VGA) {
+//                 frame_size = FRAMESIZE_VGA;
+//             }
+//             break;
+// #endif
 #if CONFIG_OV3660_SUPPORT
         case OV3660_PID:
             if (frame_size > FRAMESIZE_QXGA) {
@@ -1174,7 +1173,7 @@ esp_err_t camera_init(const camera_config_t* config)
 
     if (pix_format == PIXFORMAT_GRAYSCALE) {
         s_state->fb_size = s_state->width * s_state->height;
-        if (s_state->sensor.id.PID == OV3660_PID || s_state->sensor.id.PID == OV5640_PID) {
+        if (s_state->sensor.id.PID == OV3660_PID || s_state->sensor.id.PID == OV5640_PID || s_state->sensor.id.PID == OV7740_PID) {
             if (is_hs_mode()) {
                 s_state->sampling_mode = SM_0A00_0B00;
                 s_state->dma_filter = &dma_filter_yuyv_highspeed;
@@ -1182,7 +1181,12 @@ esp_err_t camera_init(const camera_config_t* config)
                 s_state->sampling_mode = SM_0A0B_0C0D;
                 s_state->dma_filter = &dma_filter_yuyv;
             }
-            s_state->in_bytes_per_pixel = 1;       // camera sends Y8
+            if(s_state->sensor.id.PID == OV7740_PID){
+                s_state->in_bytes_per_pixel = 2;       // camera sends YU/YV
+                s_state->fb_bytes_per_pixel = 2; 
+            }else{
+                s_state->in_bytes_per_pixel = 1;       // camera sends Y8
+            }
         } else {
             if (is_hs_mode() && s_state->sensor.id.PID != OV7725_PID) {
                 s_state->sampling_mode = SM_0A00_0B00;

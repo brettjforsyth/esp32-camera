@@ -30,7 +30,7 @@ config OV5640_SUPPORT
         
 config OV7740_SUPPORT
     bool "OV7740 Support"
-    default y
+    default n
     help
         Enable this option if you want to use the OV7740.
         Disable this option to save memory.

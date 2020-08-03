@@ -80,6 +80,7 @@ uint8_t SCCB_Probe()
     uint8_t slave_addr = 0x21;
     /* ov5640 */
     //uint8_t slave_addr = 0x3c;
+    //uint8_t slave_addr = 0x00;
     while(slave_addr < 0x7f) {
         i2c_cmd_handle_t cmd = i2c_cmd_link_create();
         i2c_master_start(cmd);
