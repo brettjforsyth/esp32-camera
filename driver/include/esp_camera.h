@@ -106,6 +106,7 @@ typedef struct {
 
     int jpeg_quality;               /*!< Quality of JPEG output. 0-63 lower means higher quality  */
     size_t fb_count;                /*!< Number of frame buffers to be allocated. If more than one, then each frame will be acquired (double speed)  */
+    int cam_i2c_address;
 } camera_config_t;
 
 /**
@@ -187,6 +188,9 @@ esp_err_t esp_camera_save_to_nvs(const char *key);
  * @param key   A unique nvs key name for the camera settings 
  */
 esp_err_t esp_camera_load_from_nvs(const char *key);
+
+
+void esp_camera_reset_dma(int width, int height,int frame_size);
 
 #ifdef __cplusplus
 }

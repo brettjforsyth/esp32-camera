@@ -551,7 +551,7 @@ static int set_framesize(sensor_t *sensor, framesize_t framesize)
         ret |= SCCB_Write(sensor->slv_addr, 0x82, 0x3F);
     }    
     // Delay
-    //vTaskDelay(30 / portTICK_PERIOD_MS);
+    vTaskDelay(30 / portTICK_PERIOD_MS);
     return ret;
 }
 

@@ -73,14 +73,14 @@ static IRAM_ATTR void convert_line_format(uint8_t * src, pixformat_t format, uin
     } else if(format == PIXFORMAT_YUV422) {
         uint8_t y0, y1, u, v;
         uint8_t r, g, b;
-        l = width * 2;
+        l = width *2;
         src += l * line;
         for(i=0; i<l; i+=4) {
             y0 = src[i];
             u = src[i+1];
             y1 = src[i+2];
             v = src[i+3];
-
+             //ESP_LOGE(TAG, "Y0 %d Y1 %d",y0, y1);
             yuv2rgb(y0, u, v, &r, &g, &b);
             dst[o++] = r;
             dst[o++] = g;

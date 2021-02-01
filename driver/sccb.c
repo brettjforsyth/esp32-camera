@@ -64,7 +64,7 @@ int SCCB_Init(int pin_sda, int pin_scl)
     return 0;
 }
 
-uint8_t SCCB_Probe()
+uint8_t SCCB_Probe(int cam_i2c_address)
 {
 #ifdef CONFIG_SCCB_HARDWARE_I2C
     ESP_LOGE(TAG, "SCCB_Probe hardware start");
@@ -77,11 +77,29 @@ uint8_t SCCB_Probe()
     /* ov2640 */
     //uint8_t slave_addr = 0x30;
     /* ov7740 */
-    uint8_t slave_addr = 0x21;
+    //uint8_t slave_addr = 0x21;
     /* ov5640 */
     //uint8_t slave_addr = 0x3c;
-    //uint8_t slave_addr = 0x00;
-    while(slave_addr < 0x7f) {
+    uint8_t slave_addr = 0x00;
+
+    if(cam_i2c_address == 0){
+        while(slave_addr < 0x7f) {
+            i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+            i2c_master_start(cmd);
+            i2c_master_write_byte(cmd, ( slave_addr << 1 ) | WRITE_BIT, ACK_CHECK_EN);
+            i2c_master_stop(cmd);
+            esp_err_t ret = i2c_master_cmd_begin(SCCB_I2C_PORT, cmd, 1000 / portTICK_RATE_MS);
+            i2c_cmd_link_delete(cmd);
+            ESP_LOGE(TAG, "return from slave test %d",ret);
+            ESP_LOGE(TAG, "Camera slave_addr %d",slave_addr);
+            if( ret == ESP_OK) {
+                ESP_SLAVE_ADDR = slave_addr;
+                return ESP_SLAVE_ADDR;
+            }
+            slave_addr++;
+        }
+    }else{
+        slave_addr = cam_i2c_address;
         i2c_cmd_handle_t cmd = i2c_cmd_link_create();
         i2c_master_start(cmd);
         i2c_master_write_byte(cmd, ( slave_addr << 1 ) | WRITE_BIT, ACK_CHECK_EN);
@@ -94,7 +112,6 @@ uint8_t SCCB_Probe()
             ESP_SLAVE_ADDR = slave_addr;
             return ESP_SLAVE_ADDR;
         }
-        slave_addr++;
     }
     return ESP_SLAVE_ADDR;
 #else
