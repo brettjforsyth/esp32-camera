@@ -6,12 +6,16 @@
  * SCCB (I2C like) driver.
  *
  */
+
 #include <stdbool.h>
 #include <string.h>
+#include <stdio.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+
+//#define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
+
 #include "sccb.h"
-#include <stdio.h>
 #include "sdkconfig.h"
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_ARDUHAL_ESP_LOG)
 #include "esp32-hal-log.h"
@@ -19,6 +23,28 @@
 #include "esp_log.h"
 static const char* TAG = "sccb";
 #endif
+
+// Possible SCCB ports
+static const uint8_t SCCBPort[]=
+{
+#if CONFIG_OV7670_SUPPORT || CONFIG_OV7725_SUPPORT
+0x42,
+#endif
+#if CONFIG_NT99141_SUPPORT
+0x54,
+#endif
+#if CONFIG_OV2640_SUPPORT
+0x60,
+#endif
+#if CONFIG_OV7740_SUPPORT
+0x21,
+#endif
+#if CONFIG_OV3360_SUPPORT || CONFIG_OV5640_SUPPORT
+0x78,
+#endif
+0x00 // Last marker
+};
+
 
 #define LITTLETOBIG(x)          ((x<<8)|(x>>8))
 
@@ -40,17 +66,15 @@ static uint8_t ESP_SLAVE_ADDR   = 0x3c;
 
 int SCCB_Init(int pin_sda, int pin_scl)
 {
-
-    ESP_LOGI(TAG, "pin_sda %d pin_scl %d\n", pin_sda, pin_scl);
-    //log_i("SCCB_Init start");
-    i2c_config_t conf;
-    memset(&conf, 0, sizeof(i2c_config_t));
-    conf.mode = I2C_MODE_MASTER;
-    conf.sda_io_num = pin_sda;
-    conf.sda_pullup_en = GPIO_PULLUP_DISABLE;
-    conf.scl_io_num = pin_scl;
-    conf.scl_pullup_en = GPIO_PULLUP_DISABLE;
-    conf.master.clk_speed = SCCB_FREQ;
+    ESP_LOGD(TAG,"SCCB_Init: I2C%d (SDA GPIO=%d, SCL GPIO=%d)",SCCB_I2C_PORT,pin_sda,pin_scl);
+    i2c_config_t conf= {
+        .mode = I2C_MODE_MASTER
+       ,.sda_io_num = pin_sda
+       ,.sda_pullup_en = GPIO_PULLUP_ENABLE
+       ,.scl_io_num = pin_scl
+       ,.scl_pullup_en = GPIO_PULLUP_ENABLE
+       ,.master.clk_speed = SCCB_FREQ
+    };
 
     i2c_param_config(SCCB_I2C_PORT, &conf);
     i2c_driver_install(SCCB_I2C_PORT, conf.mode, 0, 0, 0);
@@ -59,61 +83,30 @@ int SCCB_Init(int pin_sda, int pin_scl)
 
 uint8_t SCCB_Probe()
 {
+	ESP_LOGD(TAG,"SCCB_Probe");
+    const uint8_t * slave_addr = (const uint8_t *)&SCCBPort;
+    while (*slave_addr) {
+    	ESP_LOGD(TAG,"SCCB_Probe: trying slave address 0x%X", *slave_addr);
 
-//#ifdef CONFIG_SCCB_HARDWARE_I2C
-//    ESP_LOGE(TAG, "SCCB_Probe hardware start");
-
-    /*
-        SUPER KLUDGE: This was the only way to get the camera to work with the new board was to hard set the ID
-        Need to figure out what the ID for the 7740 looks like on the I2C
-
-    */
-    /* ov2640 */
-    //uint8_t slave_addr = 0x30;
-    /* ov7740 */
-//    uint8_t slave_addr = 0x21;
-
-    uint8_t slave_addr = 0x0;
-
-    while(slave_addr < 0x7f) {
         i2c_cmd_handle_t cmd = i2c_cmd_link_create();
         i2c_master_start(cmd);
-        i2c_master_write_byte(cmd, ( slave_addr << 1 ) | WRITE_BIT, ACK_CHECK_EN);
+        i2c_master_write_byte(cmd, (*slave_addr) | WRITE_BIT, ACK_CHECK_EN);
         i2c_master_stop(cmd);
         esp_err_t ret = i2c_master_cmd_begin(SCCB_I2C_PORT, cmd, 1000 / portTICK_RATE_MS);
         i2c_cmd_link_delete(cmd);
-        ESP_LOGE(TAG, "return from slave test %d",ret);
-        ESP_LOGE(TAG, "Camera slave_addr %d",slave_addr);
         if( ret == ESP_OK) {
-            ESP_SLAVE_ADDR = slave_addr;
-            return ESP_SLAVE_ADDR;
+        	ESP_LOGD(TAG,"SCCB_Probe: camera address 0x%X",*slave_addr);
+        	ESP_SLAVE_ADDR = (*slave_addr)>>1;
+        	return ESP_SLAVE_ADDR;
         }
         slave_addr++;
     }
     return ESP_SLAVE_ADDR;
-
-//#else
-//    uint8_t reg = 0x00;
-//    uint8_t slv_addr = 0x00;
-//
-//    ESP_LOGE(TAG, "SCCB_Probe start");
-//    for (uint8_t i = 0; i < 127; i++) {
-//        if (twi_writeTo(i, &reg, 1, true) == 0) {
-//            slv_addr = i;
-//            break;
-//        }
-//
-//        if (i!=126) {
-//            vTaskDelay(10 / portTICK_PERIOD_MS); // Necessary for OV7725 camera (not for OV2640).
-//        }
-//    }
-//    ESP_LOGE(TAG, "Detected camera at address=0x%02x", slv_addr);
-//    return slv_addr;
-//#endif
 }
 
 uint8_t SCCB_Read(uint8_t slv_addr, uint8_t reg)
 {
+	ESP_LOGD(TAG,"SCCB_Read: addr=0x%X, reg=0x%X",slv_addr,reg);
     uint8_t data=0;
     esp_err_t ret = ESP_FAIL;
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
@@ -123,7 +116,9 @@ uint8_t SCCB_Read(uint8_t slv_addr, uint8_t reg)
     i2c_master_stop(cmd);
     ret = i2c_master_cmd_begin(SCCB_I2C_PORT, cmd, 1000 / portTICK_RATE_MS);
     i2c_cmd_link_delete(cmd);
-    if(ret != ESP_OK) return -1;
+    if (ret != ESP_OK) {
+    	return -1;
+    }
     cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
     i2c_master_write_byte(cmd, ( slv_addr << 1 ) | READ_BIT, ACK_CHECK_EN);
@@ -139,6 +134,7 @@ uint8_t SCCB_Read(uint8_t slv_addr, uint8_t reg)
 
 uint8_t SCCB_Write(uint8_t slv_addr, uint8_t reg, uint8_t data)
 {
+	ESP_LOGD(TAG,"SCCB_Write: addr=0x%X, reg=0x%X, data=0x%X",slv_addr,reg,data);
     esp_err_t ret = ESP_FAIL;
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
@@ -156,6 +152,7 @@ uint8_t SCCB_Write(uint8_t slv_addr, uint8_t reg, uint8_t data)
 
 uint8_t SCCB_Read16(uint8_t slv_addr, uint16_t reg)
 {
+	ESP_LOGD(TAG,"SCCB_Read16: addr=0x%X, resg=0x%X",slv_addr,reg);
     uint8_t data=0;
     esp_err_t ret = ESP_FAIL;
     uint16_t reg_htons = LITTLETOBIG(reg);
@@ -184,6 +181,7 @@ uint8_t SCCB_Read16(uint8_t slv_addr, uint16_t reg)
 
 uint8_t SCCB_Write16(uint8_t slv_addr, uint16_t reg, uint8_t data)
 {
+	ESP_LOGD(TAG,"SCCB_Write16: addr=0x%X, reg=0x%X, data=0x%X",slv_addr,reg,data);
     static uint16_t i = 0;
     esp_err_t ret = ESP_FAIL;
     uint16_t reg_htons = LITTLETOBIG(reg);
