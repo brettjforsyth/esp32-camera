@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define NT99141_PID     (0x14)
 #define OV9650_PID     (0x96)
 #define OV7725_PID     (0x77)
 #define OV2640_PID     (0x26)
@@ -19,6 +20,9 @@
 #define OV7740_PID     (0x77)
 
 /*#define OV_I2C_SENSOR_ADDRESS          (0x42u >> 1)    OV7740 -> 0x42 */
+
+#define OV7670_PID     (0x76)
+
 
 typedef enum {
     PIXFORMAT_RGB565,    // 2BPP/RGB565
