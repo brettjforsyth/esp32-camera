@@ -555,43 +555,6 @@ static int set_framesize(sensor_t *sensor, framesize_t framesize)
     return ret;
 }
 
-static int set_framerate(sensor_t *sensor, framerate_t framerate)
-{
-    // int ret = 0;
-    // switch(framerate)
-    // {
-    //     case FRAMERATE_60FPS:
-    //         ret |= SCCB_Write(sensor->slv_addr, 0x11, 0x00);
-    //         ret |= SCCB_Write(sensor->slv_addr, 0x55, 0x40);
-    //         ret |= SCCB_Write(sensor->slv_addr, 0x2b, 0xF0);
-    //         ret |= SCCB_Write(sensor->slv_addr, 0x2c, 0x01);
-    //         break;
-    //     case FRAMERATE_30FPS:
-    //         ret |= SCCB_Write(sensor->slv_addr, 0x11, 0x01);
-    //         ret |= SCCB_Write(sensor->slv_addr, 0x55, 0x40);
-    //         ret |= SCCB_Write(sensor->slv_addr, 0x2b, 0xF0);
-    //         ret |= SCCB_Write(sensor->slv_addr, 0x2c, 0x01);
-    //         break;
-    //     case FRAMERATE_25FPS:
-    //         ret |= SCCB_Write(sensor->slv_addr, 0x11, 0x01);
-    //         ret |= SCCB_Write(sensor->slv_addr, 0x55, 0x40);
-    //         ret |= SCCB_Write(sensor->slv_addr, 0x2b, 0x5E);
-    //         ret |= SCCB_Write(sensor->slv_addr, 0x2c, 0x02);
-    //         break;
-    //     case FRAMERATE_15FPS:
-    //         ret |= SCCB_Write(sensor->slv_addr, 0x11, 0x03);
-    //         ret |= SCCB_Write(sensor->slv_addr, 0x55, 0x40);
-    //         ret |= SCCB_Write(sensor->slv_addr, 0x2b, 0xF0);
-    //         ret |= SCCB_Write(sensor->slv_addr, 0x2c, 0x01);
-    //         break;
-    //     default:
-    //         return -1;
-    // }
-    // // Delay
-    // vTaskDelay(30 / portTICK_PERIOD_MS);
-    // return ret;
-    return 0;
-}
 esp_err_t xclk_timer_conf(int ledc_timer, int xclk_freq_hz);
 static int set_xclk(sensor_t *sensor, int timer, int xclk)
 {
@@ -828,7 +791,6 @@ int ov7740_init(sensor_t *sensor)
     sensor->set_reg             = set_reg;
     sensor->set_pixformat       = set_pixformat;
     sensor->set_framesize       = set_framesize;
-    sensor->set_framerate       = set_framerate;
     sensor->set_contrast        = set_contrast;
     sensor->set_brightness      = set_brightness;
     sensor->set_saturation      = set_saturation;

@@ -212,21 +212,21 @@ static int skip_frame()
     ESP_LOGE(TAG, "_gpio_get_level %d ", _gpio_get_level(s_state->config.pin_vsync));
     ESP_LOGE(TAG, "_gpio_get_level ==0");
     while (_gpio_get_level(s_state->config.pin_vsync) == 0) {
-        
+
         if((esp_timer_get_time() - st_t) > 1000000LL){
             goto timeout;
         }
     }
      ESP_LOGE(TAG, "_gpio_get_level != 0");
     while (_gpio_get_level(s_state->config.pin_vsync) != 0) {
-       
+
         if((esp_timer_get_time() - st_t) > 1000000LL){
             goto timeout;
         }
     }
     ESP_LOGE(TAG, "_gpio_get_level == 0 2");
     while (_gpio_get_level(s_state->config.pin_vsync) == 0) {
-        
+
         if((esp_timer_get_time() - st_t) > 1000000LL){
             goto timeout;
         }
@@ -482,7 +482,7 @@ static void i2s_init()
 
 static void IRAM_ATTR i2s_start_bus()
 {
-     ESP_LOGE(TAG, "i2s_start_bus");
+     ESP_LOGV(TAG, "i2s_start_bus");
     s_state->dma_desc_cur = 0;
     s_state->dma_received_count = 0;
     //s_state->dma_filtered_count = 0;
@@ -501,15 +501,14 @@ static void IRAM_ATTR i2s_start_bus()
     if (s_state->config.pixel_format == PIXFORMAT_JPEG) {
         vsync_intr_enable();
     }
-    ESP_LOGE(TAG, "i2s_start_bus end");
+    ESP_LOGV(TAG, "i2s_start_bus end");
 }
 
 static int i2s_run()
 {
     for (int i = 0; i < s_state->dma_desc_count; ++i) {
         lldesc_t* d = &s_state->dma_desc[i];
-        ESP_LOGE(TAG, "DMA desc %2d: %u %u %u %u %u %u %p %p",
-                 i, d->length, d->size, d->offset, d->eof, d->sosf, d->owner, d->buf, d->qe.stqe_next);
+        //ESP_LOGV(TAG, "DMA desc %2d: %u %u %u %u %u %u %p %p",i, d->length, d->size, d->offset, d->eof, d->sosf, d->owner, d->buf, d->qe.stqe_next);
         memset(s_state->dma_buf[i], 0, d->length);
     }
 
@@ -517,27 +516,27 @@ static int i2s_run()
     camera_fb_int_t * fb = s_state->fb;
     while(s_state->config.fb_count > 1) {
         while(s_state->fb->ref && s_state->fb->next != fb) {
-            ESP_LOGE(TAG, "i2s_run loop");
+            ESP_LOGV(TAG, "i2s_run loop");
             s_state->fb = s_state->fb->next;
         }
         if(s_state->fb->ref == 0) {
-            ESP_LOGE(TAG, "i2s_run ref break");
+            ESP_LOGV(TAG, "i2s_run ref break");
             break;
         }
         vTaskDelay(2);
     }
 
     //todo: wait for vsync
-    ESP_LOGE(TAG, "Waiting for negative edge on VSYNC");
+    ESP_LOGV(TAG, "Waiting for negative edge on VSYNC");
 
     int64_t st_t = esp_timer_get_time();
     while (_gpio_get_level(s_state->config.pin_vsync) != 0) {
         if((esp_timer_get_time() - st_t) > 1000000LL){
-            ESP_LOGE(TAG, "Timeout waiting for VSYNC");
+            ESP_LOGV(TAG, "Timeout waiting for VSYNC");
             return -1;
         }
     }
-    ESP_LOGE(TAG, "Got VSYNC");
+    ESP_LOGV(TAG, "Got VSYNC");
     i2s_start_bus();
     return 0;
 }
@@ -979,15 +978,15 @@ static void IRAM_ATTR dma_filter_rgb888_highspeed(const dma_elem_t* src, lldesc_
 
 esp_err_t camera_probe(const camera_config_t* config, camera_model_t* out_camera_model)
 {
-     ESP_LOGE(TAG, "Cam probe started");
+     //ESP_LOGE(TAG, "Cam probe started");
     if (s_state != NULL) {
-        ESP_LOGE(TAG, "Invalid State");
+        ESP_LOGV(TAG, "Invalid State");
         return ESP_ERR_INVALID_STATE;
     }
 
     s_state = (camera_state_t*) calloc(sizeof(*s_state), 1);
     if (!s_state) {
-         ESP_LOGE(TAG, "No Memory");
+         //ESP_LOGE(TAG, "No Memory");
         return ESP_ERR_NO_MEM;
     }
 
@@ -1001,7 +1000,7 @@ esp_err_t camera_probe(const camera_config_t* config, camera_model_t* out_camera
       ESP_LOGD(TAG, "Initializing SSCB");
       SCCB_Init(config->pin_sscb_sda, config->pin_sscb_scl);
     }
-	
+
     if(config->pin_pwdn >= 0) {
         ESP_LOGE(TAG, "Resetting camera by power down line");
         gpio_config_t conf = { 0 };
@@ -1038,7 +1037,7 @@ esp_err_t camera_probe(const camera_config_t* config, camera_model_t* out_camera
         ESP_LOGE(TAG, "SCCB Probe fail");
         return ESP_ERR_CAMERA_NOT_DETECTED;
     }
-    
+
     //slv_addr = 0x30;
     ESP_LOGE(TAG, "Detected camera at address=0x%02x", slv_addr);
     sensor_id_t* id = &s_state->sensor.id;
@@ -1059,7 +1058,7 @@ esp_err_t camera_probe(const camera_config_t* config, camera_model_t* out_camera
         ESP_LOGD(TAG, "Resetting NT99141");
         SCCB_Write16(0x2a, 0x3008, 0x01);//bank sensor
     }
-#endif 
+#endif
 
     s_state->sensor.slv_addr = slv_addr;
     s_state->sensor.xclk_freq_hz = config->xclk_freq_hz;
@@ -1459,7 +1458,6 @@ esp_err_t esp_camera_init(const camera_config_t* config)
         ESP_LOGE(TAG, "Detected OV5640 camera");
     } else if (camera_model == CAMERA_OV7740) {
         ESP_LOGE(TAG, "Detected OV7740 camera");
-        ESP_LOGI(TAG, "Detected OV5640 camera");
     } else if (camera_model == CAMERA_OV7670) {
         ESP_LOGI(TAG, "Detected OV7670 camera");
     } else if (camera_model == CAMERA_NT99141) {
@@ -1475,7 +1473,7 @@ esp_err_t esp_camera_init(const camera_config_t* config)
         return err;
     }
 
-    
+
     return ESP_OK;
 
 fail:
@@ -1531,7 +1529,7 @@ camera_fb_t* esp_camera_fb_get()
     }
     if(!I2S0.conf.rx_start) {
         if(s_state->config.fb_count > 1) {
-            ESP_LOGE(TAG, "i2s_run");
+            ESP_LOGE(TAG, "i2s_run s_state->config.fb_count > 1");
         }
         if (i2s_run() != 0) {
             return NULL;
@@ -1539,19 +1537,21 @@ camera_fb_t* esp_camera_fb_get()
     }
     bool need_yield = false;
     if (s_state->config.fb_count == 1) {
+     
         if (xSemaphoreTake(s_state->frame_ready, FB_GET_TIMEOUT) != pdTRUE){
             i2s_stop(&need_yield);
-            ESP_LOGE(TAG, "Failed to get the frame on time!");
+            ESP_LOGE(TAG, "Failed to get the frame on time! fb_count == 1");
             return NULL;
         }
         return (camera_fb_t*)s_state->fb;
     }
     camera_fb_int_t * fb = NULL;
-    
+        
+
     if(s_state->fb_out) {
         if (xQueueReceive(s_state->fb_out, &fb,0) != pdTRUE) {
             i2s_stop(&need_yield);
-            ESP_LOGE(TAG, "Failed to get the frame on time!");
+            ESP_LOGE(TAG, "Failed to get the frame on time! FB Out");
             return NULL;
         }
     }

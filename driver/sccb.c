@@ -27,7 +27,7 @@ static const char* TAG = "sccb";
 // Possible SCCB ports
 static const uint8_t SCCBPort[]=
 {
-#if CONFIG_OV7670_SUPPORT || CONFIG_OV7725_SUPPORT
+#if CONFIG_OV7670_SUPPORT || CONFIG_OV7725_SUPPORT || CONFIG_OV7740_SUPPORT
 0x42,
 #endif
 #if CONFIG_NT99141_SUPPORT
@@ -35,9 +35,6 @@ static const uint8_t SCCBPort[]=
 #endif
 #if CONFIG_OV2640_SUPPORT
 0x60,
-#endif
-#if CONFIG_OV7740_SUPPORT
-0x21,
 #endif
 #if CONFIG_OV3360_SUPPORT || CONFIG_OV5640_SUPPORT
 0x78,

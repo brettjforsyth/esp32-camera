@@ -93,6 +93,55 @@ static IRAM_ATTR void convert_line_format(uint8_t * src, pixformat_t format, uin
         }
     }
 }
+static IRAM_ATTR void convert_line_format_half(uint8_t * src, pixformat_t format, uint8_t * dst, size_t width, size_t in_channels, size_t line)
+{
+    int i=0, o=0, l=0;
+    if(format == PIXFORMAT_GRAYSCALE) {
+        //memcpy(dst, src + line * width, width);
+        l = width;
+        src += l * line;
+        for(i=0; i<l; i+=2) {
+            dst[o++] = (src[i]+src[i+1]) >> 2;
+        }
+    } else if(format == PIXFORMAT_RGB888) {
+        l = width * 3;
+        src += l * line;
+        for(i=0; i<l; i+=3) {
+            dst[o++] = src[i+2];
+            dst[o++] = src[i+1];
+            dst[o++] = src[i];
+        }
+    } else if(format == PIXFORMAT_RGB565) {
+        l = width * 2;
+        src += l * line;
+        for(i=0; i<l; i+=2) {
+            dst[o++] = src[i] & 0xF8;
+            dst[o++] = (src[i] & 0x07) << 5 | (src[i+1] & 0xE0) >> 3;
+            dst[o++] = (src[i+1] & 0x1F) << 3;
+        }
+    } else if(format == PIXFORMAT_YUV422) {
+        uint8_t y0, y1, u, v;
+        uint8_t r, g, b;
+        l = width * 2;
+        src += l * line;
+        for(i=0; i<l; i+=4) {
+            y0 = src[i];
+            u = src[i+1];
+            y1 = src[i+2];
+            v = src[i+3];
+
+            yuv2rgb(y0, u, v, &r, &g, &b);
+            dst[o++] = r;
+            dst[o++] = g;
+            dst[o++] = b;
+
+            yuv2rgb(y1, u, v, &r, &g, &b);
+            dst[o++] = r;
+            dst[o++] = g;
+            dst[o++] = b;
+        }
+    }
+}
 
 bool convert_image(uint8_t *src, uint16_t width, uint16_t height, pixformat_t format, uint8_t quality, jpge::output_stream *dst_stream)
 {
@@ -129,6 +178,57 @@ bool convert_image(uint8_t *src, uint16_t width, uint16_t height, pixformat_t fo
 
     for (int i = 0; i < height; i++) {
         convert_line_format(src, format, line, width, num_channels, i);
+        if (!dst_image.process_scanline(line)) {
+            ESP_LOGE(TAG, "JPG process line %u failed", i);
+            free(line);
+            return false;
+        }
+    }
+    free(line);
+
+    if (!dst_image.process_scanline(NULL)) {
+        ESP_LOGE(TAG, "JPG image finish failed");
+        return false;
+    }
+    dst_image.deinit();
+    return true;
+}
+
+bool convert_image_half(uint8_t *src, uint16_t width, uint16_t height, pixformat_t format, uint8_t quality, jpge::output_stream *dst_stream)
+{
+    int num_channels = 3;
+    jpge::subsampling_t subsampling = jpge::H2V2;
+
+    if(format == PIXFORMAT_GRAYSCALE) {
+        num_channels = 1;
+        subsampling = jpge::Y_ONLY;
+    }
+
+    if(!quality) {
+        quality = 1;
+    } else if(quality > 100) {
+        quality = 100;
+    }
+
+    jpge::params comp_params = jpge::params();
+    comp_params.m_subsampling = subsampling;
+    comp_params.m_quality = quality;
+
+    jpge::jpeg_encoder dst_image;
+
+    if (!dst_image.init(dst_stream, width/2, height/2, num_channels, comp_params)) {
+        ESP_LOGE(TAG, "JPG encoder init failed");
+        return false;
+    }
+
+    uint8_t* line = (uint8_t*)_malloc(width * num_channels);
+    if(!line) {
+        ESP_LOGE(TAG, "Scan line malloc failed");
+        return false;
+    }
+
+    for (int i = 0; i < height; i++) {
+        convert_line_format_half(src, format, line, width, num_channels, i);
         if (!dst_image.process_scanline(line)) {
             ESP_LOGE(TAG, "JPG process line %u failed", i);
             free(line);
@@ -234,8 +334,37 @@ bool fmt2jpg(uint8_t *src, size_t src_len, uint16_t width, uint16_t height, pixf
     *out_len = dst_stream.get_size();
     return true;
 }
+bool fmt2jpg_half(uint8_t *src, size_t src_len, uint16_t width, uint16_t height, pixformat_t format, uint8_t quality, uint8_t ** out, size_t * out_len)
+{
+    //todo: allocate proper buffer for holding JPEG data
+    //this should be enough for CIF frame size
+    int jpg_buf_len = 64*1024;
+
+
+    uint8_t * jpg_buf = (uint8_t *)_malloc(jpg_buf_len);
+    if(jpg_buf == NULL) {
+        ESP_LOGE(TAG, "JPG buffer malloc failed");
+        return false;
+    }
+    memory_stream dst_stream(jpg_buf, jpg_buf_len);
+
+    if(!convert_image_half(src, width, height, format, quality, &dst_stream)) {
+        free(jpg_buf);
+        return false;
+    }
+
+    *out = jpg_buf;
+    *out_len = dst_stream.get_size();
+    return true;
+}
 
 bool frame2jpg(camera_fb_t * fb, uint8_t quality, uint8_t ** out, size_t * out_len)
 {
     return fmt2jpg(fb->buf, fb->len, fb->width, fb->height, fb->format, quality, out, out_len);
+}
+
+
+bool frame2jpg_half(camera_fb_t * fb, uint8_t quality, uint8_t ** out, size_t * out_len)
+{
+    return fmt2jpg_half(fb->buf, fb->len, fb->width, fb->height, fb->format, quality, out, out_len);
 }

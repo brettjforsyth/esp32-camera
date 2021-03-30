@@ -102,7 +102,6 @@ typedef struct {
 
     pixformat_t pixel_format;       /*!< Format of the pixel data: PIXFORMAT_ + YUV422|GRAYSCALE|RGB565|JPEG  */
     framesize_t frame_size;         /*!< Size of the output image: FRAMESIZE_ + QVGA|CIF|VGA|SVGA|XGA|SXGA|UXGA  */
-    framerate_t frame_rate;         /*!< FRAMERATE_60FPS|FRAMERATE_30FPS|FRAMERATE_25FPS|FRAMERATE_15FPS  */
 
     int jpeg_quality;               /*!< Quality of JPEG output. 0-63 lower means higher quality  */
     size_t fb_count;                /*!< Number of frame buffers to be allocated. If more than one, then each frame will be acquired (double speed)  */
